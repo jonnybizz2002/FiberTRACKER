@@ -3,36 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Frontier Fiber Sales Tracker</title>
-<style>
-body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-h1 { text-align: center; color: #007bff; margin-bottom: 20px; }
-form { display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-form input, form select, form button { padding: 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
-form button { background: #007bff; color: white; border: none; cursor: pointer; }
-form button:hover { background: #0056b3; }
+<title>Frontier Sales Tracker</title>
 
-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-th { background-color: #007bff; color: white; }
-.delete-btn { background: #dc3545; color: white; border: none; border-radius: 3px; padding: 3px 6px; cursor: pointer; }
-.delete-btn:hover { background: #b02a37; }
-.edit-btn { background: #ffc107; color: #000; border: none; border-radius: 3px; padding: 3px 6px; cursor: pointer; }
-.edit-btn:hover { background: #e0a800; }
-.status-btn { padding: 3px 6px; border-radius: 3px; cursor: pointer; border: none; color: white; }
-.status-installed { background: #28a745; }
-.status-canceled { background: #dc3545; }
-.status-pending { background: #ffc107; color: #000; }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  padding: 15px;
+}
+
+h1 {
+  text-align: center;
+  color: #007bff;
+}
+
+form {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+form label {
+  font-weight: bold;
+  margin-top: 10px;
+  display: block;
+}
+
+form input,
+form select,
+form button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  font-size: 16px;
+}
+
+.checkbox-row {
+  margin-top: 5px;
+}
+
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  margin-top: 15px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  font-size: 14px;
+  text-align: center;
+}
+
+th {
+  background: #007bff;
+  color: white;
+}
+
+.status-pending { background: #fff3cd; }
+.status-installed { background: #d4edda; }
+.status-canceled { background: #f8d7da; }
+
+.row-btn {
+  padding: 5px;
+  margin: 2px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.install-btn { background: #28a745; color: white; }
+.cancel-btn { background: #dc3545; color: white; }
+.delete-btn { background: #6c757d; color: white; }
 </style>
 </head>
+
 <body>
 
-<h1>Frontier Fiber Sales Tracker</h1>
+<h1>Frontier Fiber Sales</h1>
 
 <form id="saleForm">
-  <input required placeholder="Customer Name" id="name" />
-  <input placeholder="Phone Number" id="phone" />
-  <input placeholder="Confirmation / Order Number" id="orderNumber" />
+  <label>Customer Name</label>
+  <input id="name" required>
+
+  <label>Phone Number</label>
+  <input id="phone">
+
+  <label>Order / Confirmation #</label>
+  <input id="order">
+
+  <label>Internet Speed</label>
   <select id="speed">
     <option value="">Select Speed</option>
     <option>500 Mbps</option>
@@ -40,15 +108,28 @@ th { background-color: #007bff; color: white; }
     <option>2 Gig</option>
     <option>5 Gig</option>
   </select>
-  <label><input type="checkbox" id="wholeHome"> Whole Home</label>
-  <label><input type="checkbox" id="wifiSecurity"> WiFi Security</label>
-  <label><input type="checkbox" id="autopay"> Autopay</label>
-  <input type="date" id="dateSold" />
-  <input type="date" id="installDate" />
+
+  <label>Attachments</label>
+  <div class="checkbox-row">
+    <input type="checkbox" id="wholeHome"> Whole Home
+  </div>
+  <div class="checkbox-row">
+    <input type="checkbox" id="wifiSecurity"> WiFi Security
+  </div>
+  <div class="checkbox-row">
+    <input type="checkbox" id="autopay"> AutoPay
+  </div>
+
+  <label>Date Sold</label>
+  <input type="date" id="dateSold">
+
+  <label>Install Date</label>
+  <input type="date" id="installDate">
+
   <button type="submit">Add Sale</button>
 </form>
 
-<table id="salesTable">
+<table>
   <thead>
     <tr>
       <th>Name</th>
@@ -62,115 +143,81 @@ th { background-color: #007bff; color: white; }
       <th>Actions</th>
     </tr>
   </thead>
-  <tbody id="tableBody">
-    <!-- Sales appear here -->
-  </tbody>
+  <tbody id="salesBody"></tbody>
 </table>
 
 <script>
-let sales = [];
-let editIndex = null;
-
 const form = document.getElementById("saleForm");
-const tableBody = document.getElementById("tableBody");
+const salesBody = document.getElementById("salesBody");
+let sales = [];
 
-// Convert YYYY-MM-DD to MM/DD/YY
-function formatDate(dateStr) {
-  if(!dateStr) return "";
-  const [year, month, day] = dateStr.split("-");
-  return `${month}/${day}/${year.slice(2)}`;
-}
-
-function renderSales() {
-  tableBody.innerHTML = "";
-  sales.forEach((sale, index) => {
-    const attachments = [];
-    if(sale.wholeHome) attachments.push("Whole Home");
-    if(sale.wifiSecurity) attachments.push("WiFi Security");
-    if(sale.autopay) attachments.push("Autopay");
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${sale.name}</td>
-      <td>${sale.phone}</td>
-      <td>${sale.orderNumber}</td>
-      <td>${sale.speed}</td>
-      <td>${attachments.join(", ")}</td>
-      <td>${formatDate(sale.dateSold)}</td>
-      <td>${formatDate(sale.installDate)}</td>
-      <td>
-        <button class="status-btn ${statusClass(sale.status)}" onclick="toggleStatus(${index})">${sale.status}</button>
-      </td>
-      <td>
-        <button class="edit-btn" onclick="editSale(${index})">Edit</button>
-        <button class="delete-btn" onclick="deleteSale(${index})">Delete</button>
-      </td>
-    `;
-    tableBody.appendChild(tr);
-  });
-}
-
-function statusClass(status) {
-  if(status === "Installed") return "status-installed";
-  if(status === "Canceled") return "status-canceled";
-  return "status-pending";
-}
-
-function toggleStatus(index) {
-  const sale = sales[index];
-  if(sale.status === "Pending") sale.status = "Installed";
-  else if(sale.status === "Installed") sale.status = "Canceled";
-  else sale.status = "Pending";
-  renderSales();
-}
-
-function deleteSale(index) {
-  sales.splice(index,1);
-  renderSales();
-}
-
-function editSale(index) {
-  const sale = sales[index];
-  document.getElementById("name").value = sale.name;
-  document.getElementById("phone").value = sale.phone;
-  document.getElementById("orderNumber").value = sale.orderNumber;
-  document.getElementById("speed").value = sale.speed;
-  document.getElementById("wholeHome").checked = sale.wholeHome;
-  document.getElementById("wifiSecurity").checked = sale.wifiSecurity;
-  document.getElementById("autopay").checked = sale.autopay;
-  document.getElementById("dateSold").value = sale.dateSold;
-  document.getElementById("installDate").value = sale.installDate;
-  editIndex = index;
-}
-
-form.addEventListener("submit", function(e){
+form.addEventListener("submit", function(e) {
   e.preventDefault();
-  const saleData = {
-    name: document.getElementById("name").value,
-    phone: document.getElementById("phone").value,
-    orderNumber: document.getElementById("orderNumber").value,
-    speed: document.getElementById("speed").value,
-    wholeHome: document.getElementById("wholeHome").checked,
-    wifiSecurity: document.getElementById("wifiSecurity").checked,
-    autopay: document.getElementById("autopay").checked,
-    dateSold: document.getElementById("dateSold").value,
-    installDate: document.getElementById("installDate").value,
+
+  const sale = {
+    name: name.value,
+    phone: phone.value,
+    order: order.value,
+    speed: speed.value,
+    attachments: [
+      wholeHome.checked ? "Whole Home" : null,
+      wifiSecurity.checked ? "WiFi Security" : null,
+      autopay.checked ? "AutoPay" : null
+    ].filter(Boolean).join(", "),
+    dateSold: dateSold.value,
+    installDate: installDate.value,
     status: "Pending"
   };
 
-  if(editIndex !== null) {
-    saleData.status = sales[editIndex].status; // keep status
-    sales[editIndex] = saleData;
-    editIndex = null;
-  } else {
-    sales.push(saleData);
-  }
-
+  sales.push(sale);
+  render();
   form.reset();
-  renderSales();
 });
 
-renderSales();
+function render() {
+  salesBody.innerHTML = "";
+
+  sales.forEach((sale, index) => {
+    const row = document.createElement("tr");
+    row.className = "status-pending";
+
+    row.innerHTML = `
+      <td>${sale.name}</td>
+      <td>${sale.phone}</td>
+      <td>${sale.order}</td>
+      <td>${sale.speed}</td>
+      <td>${sale.attachments}</td>
+      <td>${sale.dateSold}</td>
+      <td>${sale.installDate}</td>
+      <td>${sale.status}</td>
+      <td>
+        <button class="row-btn install-btn" onclick="markInstalled(${index})">Installed</button>
+        <button class="row-btn cancel-btn" onclick="markCanceled(${index})">Canceled</button>
+        <button class="row-btn delete-btn" onclick="deleteSale(${index})">X</button>
+      </td>
+    `;
+
+    if (sale.status === "Installed") row.className = "status-installed";
+    if (sale.status === "Canceled") row.className = "status-canceled";
+
+    salesBody.appendChild(row);
+  });
+}
+
+function markInstalled(i) {
+  sales[i].status = "Installed";
+  render();
+}
+
+function markCanceled(i) {
+  sales[i].status = "Canceled";
+  render();
+}
+
+function deleteSale(i) {
+  sales.splice(i, 1);
+  render();
+}
 </script>
 
 </body>
