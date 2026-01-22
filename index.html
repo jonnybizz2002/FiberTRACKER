@@ -17,6 +17,18 @@ h1 {
   color: #007bff;
 }
 
+.stats {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.install-rate { color: #28a745; }
+.cancel-rate { color: #dc3545; }
+
 form {
   background: white;
   padding: 15px;
@@ -24,31 +36,57 @@ form {
   margin-bottom: 20px;
 }
 
-form label {
+label {
   font-weight: bold;
-  margin-top: 10px;
   display: block;
+  margin-top: 10px;
 }
 
-form input,
-form select,
-form button {
+input, select, button {
   width: 100%;
   padding: 10px;
   margin-top: 5px;
   font-size: 16px;
 }
 
-.checkbox-row {
-  margin-top: 5px;
-}
+.checkbox-row { margin-top: 5px; }
 
 button {
   background: #007bff;
   color: white;
   border: none;
   border-radius: 5px;
-  margin-top: 15px;
+  margin-top: 10px;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.filter-bar button {
+  flex: 1;
+  font-size: 14px;
+}
+
+.export-btn { background: #28a745; }
+
+.install-group {
+  margin-bottom: 30px;
+}
+
+.install-header {
+  background: #343a40;
+  color: white;
+  padding: 8px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.install-count {
+  font-size: 14px;
+  opacity: 0.8;
 }
 
 table {
@@ -59,8 +97,8 @@ table {
 
 th, td {
   border: 1px solid #ccc;
-  padding: 8px;
-  font-size: 14px;
+  padding: 6px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -73,16 +111,31 @@ th {
 .status-installed { background: #d4edda; }
 .status-canceled { background: #f8d7da; }
 
-.row-btn {
-  padding: 5px;
-  margin: 2px;
+.status-btn {
   font-size: 12px;
+  padding: 6px;
   border-radius: 4px;
+  border: none;
+  width: 100%;
 }
 
-.install-btn { background: #28a745; color: white; }
-.cancel-btn { background: #dc3545; color: white; }
-.delete-btn { background: #6c757d; color: white; }
+.pending-btn { background: #ffc107; }
+.installed-btn { background: #28a745; color: white; }
+.canceled-btn { background: #dc3545; color: white; }
+
+.delete-btn {
+  background: #6c757d;
+  color: white;
+  font-size: 12px;
+  padding: 6px;
+  border-radius: 4px;
+  border: none;
+  width: 100%;
+}
+
+td[contenteditable="true"] {
+  background: #eef6ff;
+}
 </style>
 </head>
 
@@ -90,19 +143,21 @@ th {
 
 <h1>Frontier Fiber Sales</h1>
 
+<div class="stats" id="stats"></div>
+
 <form id="saleForm">
   <label>Customer Name</label>
   <input id="name" required>
 
-  <label>Phone Number</label>
+  <label>Phone</label>
   <input id="phone">
 
-  <label>Order / Confirmation #</label>
+  <label>Order #</label>
   <input id="order">
 
-  <label>Internet Speed</label>
+  <label>Speed</label>
   <select id="speed">
-    <option value="">Select Speed</option>
+    <option value="">Select</option>
     <option>500 Mbps</option>
     <option>1 Gig</option>
     <option>2 Gig</option>
@@ -110,15 +165,9 @@ th {
   </select>
 
   <label>Attachments</label>
-  <div class="checkbox-row">
-    <input type="checkbox" id="wholeHome"> Whole Home
-  </div>
-  <div class="checkbox-row">
-    <input type="checkbox" id="wifiSecurity"> WiFi Security
-  </div>
-  <div class="checkbox-row">
-    <input type="checkbox" id="autopay"> AutoPay
-  </div>
+  <div class="checkbox-row"><input type="checkbox" id="wholeHome"> Whole Home</div>
+  <div class="checkbox-row"><input type="checkbox" id="wifiSecurity"> WiFi Security</div>
+  <div class="checkbox-row"><input type="checkbox" id="autopay"> AutoPay</div>
 
   <label>Date Sold</label>
   <input type="date" id="dateSold">
@@ -129,95 +178,166 @@ th {
   <button type="submit">Add Sale</button>
 </form>
 
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Phone</th>
-      <th>Order #</th>
-      <th>Speed</th>
-      <th>Attachments</th>
-      <th>Date Sold</th>
-      <th>Install Date</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody id="salesBody"></tbody>
-</table>
+<div class="filter-bar">
+  <button onclick="setFilter('All')">All</button>
+  <button onclick="setFilter('Pending')">Pending</button>
+  <button onclick="setFilter('Installed')">Installed</button>
+  <button onclick="setFilter('Canceled')">Canceled</button>
+</div>
+
+<button class="export-btn" onclick="exportCSV()">Export CSV</button>
+
+<div id="groups"></div>
 
 <script>
+let sales = JSON.parse(localStorage.getItem("sales")) || [];
+let filter = "All";
+
+const statsDiv = document.getElementById("stats");
 const form = document.getElementById("saleForm");
-const salesBody = document.getElementById("salesBody");
-let sales = [];
+const groupsDiv = document.getElementById("groups");
 
-form.addEventListener("submit", function(e) {
+function save() {
+  localStorage.setItem("sales", JSON.stringify(sales));
+}
+
+function formatDate(d) {
+  if (!d) return "";
+  const x = new Date(d);
+  return `${String(x.getMonth()+1).padStart(2,"0")}/${String(x.getDate()).padStart(2,"0")}/${String(x.getFullYear()).slice(-2)}`;
+}
+
+/* STATS */
+function updateStats() {
+  const total = sales.length;
+  const installed = sales.filter(s => s.status === "Installed").length;
+  const canceled = sales.filter(s => s.status === "Canceled").length;
+
+  const installRate = total ? Math.round((installed / total) * 100) : 0;
+  const cancelRate = total ? Math.round((canceled / total) * 100) : 0;
+
+  statsDiv.innerHTML = `
+    Total: ${total} | Installed: ${installed} | Canceled: ${canceled}<br>
+    <span class="install-rate">Install Rate: ${installRate}%</span> |
+    <span class="cancel-rate">Cancel Rate: ${cancelRate}%</span>
+  `;
+}
+
+/* CSV */
+function exportCSV() {
+  let csv = "Name,Phone,Order,Speed,Attachments,Date Sold,Install Date,Status\n";
+  sales.forEach(s=>{
+    csv += `"${s.name}","${s.phone}","${s.order}","${s.speed}","${s.attachments}","${formatDate(s.dateSold)}","${formatDate(s.installDate)}","${s.status}"\n`;
+  });
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "frontier_sales.csv";
+  a.click();
+}
+
+/* FORM */
+form.onsubmit = e => {
   e.preventDefault();
-
-  const sale = {
+  sales.push({
     name: name.value,
     phone: phone.value,
     order: order.value,
     speed: speed.value,
     attachments: [
-      wholeHome.checked ? "Whole Home" : null,
-      wifiSecurity.checked ? "WiFi Security" : null,
-      autopay.checked ? "AutoPay" : null
+      wholeHome.checked ? "Whole Home" : "",
+      wifiSecurity.checked ? "WiFi Security" : "",
+      autopay.checked ? "AutoPay" : ""
     ].filter(Boolean).join(", "),
     dateSold: dateSold.value,
     installDate: installDate.value,
     status: "Pending"
-  };
-
-  sales.push(sale);
+  });
+  save();
   render();
   form.reset();
-});
+};
 
-function render() {
-  salesBody.innerHTML = "";
-
-  sales.forEach((sale, index) => {
-    const row = document.createElement("tr");
-    row.className = "status-pending";
-
-    row.innerHTML = `
-      <td>${sale.name}</td>
-      <td>${sale.phone}</td>
-      <td>${sale.order}</td>
-      <td>${sale.speed}</td>
-      <td>${sale.attachments}</td>
-      <td>${sale.dateSold}</td>
-      <td>${sale.installDate}</td>
-      <td>${sale.status}</td>
-      <td>
-        <button class="row-btn install-btn" onclick="markInstalled(${index})">Installed</button>
-        <button class="row-btn cancel-btn" onclick="markCanceled(${index})">Canceled</button>
-        <button class="row-btn delete-btn" onclick="deleteSale(${index})">X</button>
-      </td>
-    `;
-
-    if (sale.status === "Installed") row.className = "status-installed";
-    if (sale.status === "Canceled") row.className = "status-canceled";
-
-    salesBody.appendChild(row);
-  });
-}
-
-function markInstalled(i) {
-  sales[i].status = "Installed";
-  render();
-}
-
-function markCanceled(i) {
-  sales[i].status = "Canceled";
+function cycleStatus(i) {
+  const states = ["Pending","Installed","Canceled"];
+  sales[i].status = states[(states.indexOf(sales[i].status)+1)%3];
+  save();
   render();
 }
 
 function deleteSale(i) {
-  sales.splice(i, 1);
+  sales.splice(i,1);
+  save();
   render();
 }
+
+function setFilter(f) {
+  filter = f;
+  render();
+}
+
+function editField(i, field, value) {
+  sales[i][field] = value;
+  save();
+}
+
+/* RENDER */
+function render() {
+  updateStats();
+  groupsDiv.innerHTML = "";
+  const grouped = {};
+
+  sales.forEach((s,i)=>{
+    if (filter !== "All" && s.status !== filter) return;
+    const key = formatDate(s.installDate) || "No Install Date";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push({s,i});
+  });
+
+  Object.keys(grouped).sort().forEach(date=>{
+    const div = document.createElement("div");
+    div.className = "install-group";
+    div.innerHTML = `
+      <div class="install-header">
+        Install Date: ${date}
+        <span class="install-count"> (${grouped[date].length} installs)</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Phone</th><th>Order</th><th>Speed</th>
+            <th>Attachments</th><th>Date Sold</th><th>Status</th><th>Delete</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    `;
+    const tbody = div.querySelector("tbody");
+
+    grouped[date].forEach(({s,i})=>{
+      let rowClass = s.status==="Installed"?"status-installed":s.status==="Canceled"?"status-canceled":"status-pending";
+      let btnClass = s.status==="Installed"?"installed-btn":s.status==="Canceled"?"canceled-btn":"pending-btn";
+
+      const tr = document.createElement("tr");
+      tr.className = rowClass;
+      tr.innerHTML = `
+        <td contenteditable onblur="editField(${i},'name',this.innerText)">${s.name}</td>
+        <td contenteditable onblur="editField(${i},'phone',this.innerText)">${s.phone}</td>
+        <td contenteditable onblur="editField(${i},'order',this.innerText)">${s.order}</td>
+        <td contenteditable onblur="editField(${i},'speed',this.innerText)">${s.speed}</td>
+        <td contenteditable onblur="editField(${i},'attachments',this.innerText)">${s.attachments}</td>
+        <td>${formatDate(s.dateSold)}</td>
+        <td><button class="status-btn ${btnClass}" onclick="cycleStatus(${i})">${s.status}</button></td>
+        <td><button class="delete-btn" onclick="deleteSale(${i})">X</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    groupsDiv.appendChild(div);
+  });
+}
+
+render();
 </script>
 
 </body>
