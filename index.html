@@ -6,15 +6,17 @@
 <title>Frontier Fiber Sales Tracker</title>
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-h1 { text-align: center; color: #007bff; margin-bottom: 20px; }
-form { display: flex; flex-wrap: wrap; gap: 10px; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-form input, form select, form button { padding: 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; }
-form button { background: #007bff; color: white; border: none; cursor: pointer; }
-form button:hover { background: #0056b3; }
+h1 { text-align: center; color: #d71821; display: flex; align-items: center; justify-content: center; gap: 10px; }
+h1 img { height: 40px; }
+
+form { display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+form input, form select, form button { padding: 10px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+form button { background: #d71821; color: white; border: none; cursor: pointer; }
+form button:hover { background: #a11518; }
 
 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-th { background-color: #007bff; color: white; }
+th { background-color: #d71821; color: white; }
 .delete-btn { background: #dc3545; color: white; border: none; border-radius: 3px; padding: 3px 6px; cursor: pointer; }
 .delete-btn:hover { background: #b02a37; }
 .edit-btn { background: #ffc107; color: #000; border: none; border-radius: 3px; padding: 3px 6px; cursor: pointer; }
@@ -27,7 +29,10 @@ th { background-color: #007bff; color: white; }
 </head>
 <body>
 
-<h1>Frontier Fiber Sales Tracker</h1>
+<h1>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Frontier_Communications_logo.svg/2560px-Frontier_Communications_logo.svg.png" alt="Frontier Logo">
+  Frontier Fiber Sales Tracker
+</h1>
 
 <form id="saleForm">
   <input required placeholder="Customer Name" id="name" />
@@ -40,12 +45,9 @@ th { background-color: #007bff; color: white; }
     <option>2 Gig</option>
     <option>5 Gig</option>
   </select>
-  <label>Attachments:</label>
-  <input type="checkbox" id="wholeHome" value="Whole Home"> Whole Home
-  <input type="checkbox" id="wifiSecurity" value="WiFi Security"> WiFi Security
-  <input type="checkbox" id="autopay" value="Autopay"> Autopay
-  <input type="date" id="dateSold" />
-  <input type="date" id="installDate" />
+  <input type="date" id="dateSold" placeholder="Date Sold"/>
+  <input type="date" id="installDate" placeholder="Install Date"/>
+  <label><input type="checkbox" id="autopay"> Autopay</label>
   <button type="submit">Add Sale</button>
 </form>
 
@@ -56,7 +58,7 @@ th { background-color: #007bff; color: white; }
       <th>Phone</th>
       <th>Order #</th>
       <th>Speed</th>
-      <th>Attachments</th>
+      <th>Autopay</th>
       <th>Date Sold</th>
       <th>Install Date</th>
       <th>Status</th>
@@ -75,13 +77,17 @@ let editIndex = null;
 const form = document.getElementById("saleForm");
 const tableBody = document.getElementById("tableBody");
 
+// Function to convert YYYY-MM-DD to MM/DD/YY
+function formatDate(dateStr) {
+  if(!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${month}/${day}/${year.slice(2)}`;
+}
+
 function renderSales() {
   tableBody.innerHTML = "";
   sales.forEach((sale, index) => {
-    const attachments = [];
-    if(sale.wholeHome) attachments.push("Whole Home");
-    if(sale.wifiSecurity) attachments.push("WiFi Security");
-    if(sale.autopay) attachments.push("Autopay");
+    const autopay = sale.autopay ? "Yes" : "No";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -89,9 +95,9 @@ function renderSales() {
       <td>${sale.phone}</td>
       <td>${sale.orderNumber}</td>
       <td>${sale.speed}</td>
-      <td>${attachments.join(", ")}</td>
-      <td>${sale.dateSold}</td>
-      <td>${sale.installDate}</td>
+      <td>${autopay}</td>
+      <td>${formatDate(sale.dateSold)}</td>
+      <td>${formatDate(sale.installDate)}</td>
       <td>
         <button class="status-btn ${statusClass(sale.status)}" onclick="toggleStatus(${index})">${sale.status}</button>
       </td>
@@ -129,8 +135,6 @@ function editSale(index) {
   document.getElementById("phone").value = sale.phone;
   document.getElementById("orderNumber").value = sale.orderNumber;
   document.getElementById("speed").value = sale.speed;
-  document.getElementById("wholeHome").checked = sale.wholeHome;
-  document.getElementById("wifiSecurity").checked = sale.wifiSecurity;
   document.getElementById("autopay").checked = sale.autopay;
   document.getElementById("dateSold").value = sale.dateSold;
   document.getElementById("installDate").value = sale.installDate;
@@ -144,8 +148,6 @@ form.addEventListener("submit", function(e){
     phone: document.getElementById("phone").value,
     orderNumber: document.getElementById("orderNumber").value,
     speed: document.getElementById("speed").value,
-    wholeHome: document.getElementById("wholeHome").checked,
-    wifiSecurity: document.getElementById("wifiSecurity").checked,
     autopay: document.getElementById("autopay").checked,
     dateSold: document.getElementById("dateSold").value,
     installDate: document.getElementById("installDate").value,
