@@ -88,10 +88,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
   function save() { localStorage.setItem("sales", JSON.stringify(sales)); }
 
-  function formatDate(d) { 
+  // --- FIXED: Store date as-is and format without Date object to prevent off-by-one bug ---
+  function formatDate(d){ 
     if(!d) return "";
-    const x = new Date(d);
-    return `${String(x.getMonth()+1).padStart(2,"0")}/${String(x.getDate()).padStart(2,"0")}/${String(x.getFullYear()).slice(-2)}`;
+    const parts = d.split("-");
+    return `${parts[1]}/${parts[2]}/${parts[0].slice(-2)}`; // MM/DD/YY
   }
 
   function updateStats(){
@@ -138,7 +139,6 @@ window.addEventListener("DOMContentLoaded", () => {
         <td><button class="status-btn ${btnClass}">${s.status}</button></td>
         <td><button class="delete-btn">X</button></td>`;
         
-        // Editable fields
         const fields=["name","phone","order","speed","attachments"];
         tr.querySelectorAll("td[contenteditable]").forEach((td,index)=>{ 
           td.addEventListener("input",()=>{ sales[i][fields[index]]=td.innerText; save(); });
@@ -165,7 +165,7 @@ window.addEventListener("DOMContentLoaded", () => {
     render(); 
   }
 
-  // --- ADD SALE BUTTON FIX ---
+  // --- Add Sale button fixed for Home Screen ---
   document.getElementById("addSaleBtn").addEventListener("click", ()=>{
     const name = document.getElementById("name").value.trim();
     if(!name){ alert("Name required!"); return; }
