@@ -193,17 +193,6 @@ td[contenteditable="true"] {
 let sales = JSON.parse(localStorage.getItem("sales")) || [];
 let filter = "All";
 
-/* SAFARI-SAFE INPUT REFERENCES */
-const nameInput = document.getElementById("name");
-const phoneInput = document.getElementById("phone");
-const orderInput = document.getElementById("order");
-const speedInput = document.getElementById("speed");
-const wholeHomeInput = document.getElementById("wholeHome");
-const wifiSecurityInput = document.getElementById("wifiSecurity");
-const autopayInput = document.getElementById("autopay");
-const dateSoldInput = document.getElementById("dateSold");
-const installDateInput = document.getElementById("installDate");
-
 const statsDiv = document.getElementById("stats");
 const form = document.getElementById("saleForm");
 const groupsDiv = document.getElementById("groups");
@@ -251,6 +240,17 @@ function exportCSV() {
 /* ADD SALE */
 form.onsubmit = e => {
   e.preventDefault();
+
+  // Grab inputs here to ensure Safari/HomeScreen compatibility
+  const nameInput = document.getElementById("name");
+  const phoneInput = document.getElementById("phone");
+  const orderInput = document.getElementById("order");
+  const speedInput = document.getElementById("speed");
+  const wholeHomeInput = document.getElementById("wholeHome");
+  const wifiSecurityInput = document.getElementById("wifiSecurity");
+  const autopayInput = document.getElementById("autopay");
+  const dateSoldInput = document.getElementById("dateSold");
+  const installDateInput = document.getElementById("installDate");
 
   sales.push({
     name: nameInput.value,
