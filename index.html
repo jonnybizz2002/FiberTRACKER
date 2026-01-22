@@ -190,170 +190,164 @@ td[contenteditable="true"] {
 <div id="groups"></div>
 
 <script>
-let sales = JSON.parse(localStorage.getItem("sales")) || [];
-let filter = "All";
+window.addEventListener("DOMContentLoaded", () => {
+  let sales = JSON.parse(localStorage.getItem("sales")) || [];
+  let filter = "All";
 
-const statsDiv = document.getElementById("stats");
-const form = document.getElementById("saleForm");
-const groupsDiv = document.getElementById("groups");
+  const statsDiv = document.getElementById("stats");
+  const form = document.getElementById("saleForm");
+  const groupsDiv = document.getElementById("groups");
 
-function save() {
-  localStorage.setItem("sales", JSON.stringify(sales));
-}
+  function save() { localStorage.setItem("sales", JSON.stringify(sales)); }
 
-function formatDate(d) {
-  if (!d) return "";
-  const x = new Date(d);
-  return `${String(x.getMonth()+1).padStart(2,"0")}/${String(x.getDate()).padStart(2,"0")}/${String(x.getFullYear()).slice(-2)}`;
-}
+  function formatDate(d) { 
+    if (!d) return "";
+    const x = new Date(d);
+    return `${String(x.getMonth()+1).padStart(2,"0")}/${String(x.getDate()).padStart(2,"0")}/${String(x.getFullYear()).slice(-2)}`;
+  }
 
-/* STATS */
-function updateStats() {
-  const total = sales.length;
-  const installed = sales.filter(s => s.status === "Installed").length;
-  const canceled = sales.filter(s => s.status === "Canceled").length;
+  function updateStats() {
+    const total = sales.length;
+    const installed = sales.filter(s => s.status === "Installed").length;
+    const canceled = sales.filter(s => s.status === "Canceled").length;
+    const installRate = total ? Math.round((installed / total) * 100) : 0;
+    const cancelRate = total ? Math.round((canceled / total) * 100) : 0;
 
-  const installRate = total ? Math.round((installed / total) * 100) : 0;
-  const cancelRate = total ? Math.round((canceled / total) * 100) : 0;
-
-  statsDiv.innerHTML = `
-    Total: ${total} | Installed: ${installed} | Canceled: ${canceled}<br>
-    <span class="install-rate">Install Rate: ${installRate}%</span> |
-    <span class="cancel-rate">Cancel Rate: ${cancelRate}%</span>
-  `;
-}
-
-/* CSV EXPORT */
-function exportCSV() {
-  let csv = "Name,Phone,Order,Speed,Attachments,Date Sold,Install Date,Status\n";
-  sales.forEach(s => {
-    csv += `"${s.name}","${s.phone}","${s.order}","${s.speed}","${s.attachments}","${formatDate(s.dateSold)}","${formatDate(s.installDate)}","${s.status}"\n`;
-  });
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "frontier_sales.csv";
-  a.click();
-}
-
-/* ADD SALE */
-form.onsubmit = e => {
-  e.preventDefault();
-
-  // Grab inputs here to ensure Safari/HomeScreen compatibility
-  const nameInput = document.getElementById("name");
-  const phoneInput = document.getElementById("phone");
-  const orderInput = document.getElementById("order");
-  const speedInput = document.getElementById("speed");
-  const wholeHomeInput = document.getElementById("wholeHome");
-  const wifiSecurityInput = document.getElementById("wifiSecurity");
-  const autopayInput = document.getElementById("autopay");
-  const dateSoldInput = document.getElementById("dateSold");
-  const installDateInput = document.getElementById("installDate");
-
-  sales.push({
-    name: nameInput.value,
-    phone: phoneInput.value,
-    order: orderInput.value,
-    speed: speedInput.value,
-    attachments: [
-      wholeHomeInput.checked ? "Whole Home" : "",
-      wifiSecurityInput.checked ? "WiFi Security" : "",
-      autopayInput.checked ? "AutoPay" : ""
-    ].filter(Boolean).join(", "),
-    dateSold: dateSoldInput.value,
-    installDate: installDateInput.value,
-    status: "Pending"
-  });
-
-  save();
-  render();
-  form.reset();
-};
-
-function cycleStatus(i) {
-  const states = ["Pending","Installed","Canceled"];
-  sales[i].status = states[(states.indexOf(sales[i].status) + 1) % 3];
-  save();
-  render();
-}
-
-function deleteSale(i) {
-  sales.splice(i, 1);
-  save();
-  render();
-}
-
-function setFilter(f) {
-  filter = f;
-  render();
-}
-
-function editField(i, field, value) {
-  sales[i][field] = value;
-  save();
-}
-
-/* RENDER */
-function render() {
-  updateStats();
-  groupsDiv.innerHTML = "";
-  const grouped = {};
-
-  sales.forEach((s,i) => {
-    if (filter !== "All" && s.status !== filter) return;
-    const key = formatDate(s.installDate) || "No Install Date";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push({s,i});
-  });
-
-  Object.keys(grouped).sort().forEach(date => {
-    const div = document.createElement("div");
-    div.className = "install-group";
-    div.innerHTML = `
-      <div class="install-header">
-        Install Date: ${date}
-        <span class="install-count"> (${grouped[date].length} installs)</span>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th><th>Phone</th><th>Order</th><th>Speed</th>
-            <th>Attachments</th><th>Date Sold</th><th>Status</th><th>Delete</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    statsDiv.innerHTML = `
+      Total: ${total} | Installed: ${installed} | Canceled: ${canceled}<br>
+      <span class="install-rate">Install Rate: ${installRate}%</span> |
+      <span class="cancel-rate">Cancel Rate: ${cancelRate}%</span>
     `;
-    const tbody = div.querySelector("tbody");
+  }
 
-    grouped[date].forEach(({s,i}) => {
-      let rowClass = s.status==="Installed" ? "status-installed" :
-                     s.status==="Canceled" ? "status-canceled" : "status-pending";
-      let btnClass = s.status==="Installed" ? "installed-btn" :
-                     s.status==="Canceled" ? "canceled-btn" : "pending-btn";
+  function exportCSV() {
+    let csv = "Name,Phone,Order,Speed,Attachments,Date Sold,Install Date,Status\n";
+    sales.forEach(s => {
+      csv += `"${s.name}","${s.phone}","${s.order}","${s.speed}","${s.attachments}","${formatDate(s.dateSold)}","${formatDate(s.installDate)}","${s.status}"\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "frontier_sales.csv";
+    a.click();
+  }
 
-      const tr = document.createElement("tr");
-      tr.className = rowClass;
-      tr.innerHTML = `
-        <td contenteditable onblur="editField(${i},'name',this.innerText)">${s.name}</td>
-        <td contenteditable onblur="editField(${i},'phone',this.innerText)">${s.phone}</td>
-        <td contenteditable onblur="editField(${i},'order',this.innerText)">${s.order}</td>
-        <td contenteditable onblur="editField(${i},'speed',this.innerText)">${s.speed}</td>
-        <td contenteditable onblur="editField(${i},'attachments',this.innerText)">${s.attachments}</td>
-        <td>${formatDate(s.dateSold)}</td>
-        <td><button class="status-btn ${btnClass}" onclick="cycleStatus(${i})">${s.status}</button></td>
-        <td><button class="delete-btn" onclick="deleteSale(${i})">X</button></td>
-      `;
-      tbody.appendChild(tr);
+  form.onsubmit = e => {
+    e.preventDefault();
+
+    // Grab inputs inside submit handler
+    const nameInput = document.getElementById("name");
+    const phoneInput = document.getElementById("phone");
+    const orderInput = document.getElementById("order");
+    const speedInput = document.getElementById("speed");
+    const wholeHomeInput = document.getElementById("wholeHome");
+    const wifiSecurityInput = document.getElementById("wifiSecurity");
+    const autopayInput = document.getElementById("autopay");
+    const dateSoldInput = document.getElementById("dateSold");
+    const installDateInput = document.getElementById("installDate");
+
+    sales.push({
+      name: nameInput.value,
+      phone: phoneInput.value,
+      order: orderInput.value,
+      speed: speedInput.value,
+      attachments: [
+        wholeHomeInput.checked ? "Whole Home" : "",
+        wifiSecurityInput.checked ? "WiFi Security" : "",
+        autopayInput.checked ? "AutoPay" : ""
+      ].filter(Boolean).join(", "),
+      dateSold: dateSoldInput.value,
+      installDate: installDateInput.value,
+      status: "Pending"
     });
 
-    groupsDiv.appendChild(div);
-  });
-}
+    save();
+    render();
+    form.reset();
+  };
 
-render();
+  function cycleStatus(i) {
+    const states = ["Pending","Installed","Canceled"];
+    sales[i].status = states[(states.indexOf(sales[i].status) + 1) % 3];
+    save();
+    render();
+  }
+
+  function deleteSale(i) {
+    sales.splice(i, 1);
+    save();
+    render();
+  }
+
+  function setFilter(f) {
+    filter = f;
+    render();
+  }
+
+  function editField(i, field, value) {
+    sales[i][field] = value;
+    save();
+  }
+
+  function render() {
+    updateStats();
+    groupsDiv.innerHTML = "";
+    const grouped = {};
+
+    sales.forEach((s,i) => {
+      if (filter !== "All" && s.status !== filter) return;
+      const key = formatDate(s.installDate) || "No Install Date";
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({s,i});
+    });
+
+    Object.keys(grouped).sort().forEach(date => {
+      const div = document.createElement("div");
+      div.className = "install-group";
+      div.innerHTML = `
+        <div class="install-header">
+          Install Date: ${date}
+          <span class="install-count"> (${grouped[date].length} installs)</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Phone</th><th>Order</th><th>Speed</th>
+              <th>Attachments</th><th>Date Sold</th><th>Status</th><th>Delete</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      `;
+      const tbody = div.querySelector("tbody");
+
+      grouped[date].forEach(({s,i}) => {
+        let rowClass = s.status==="Installed" ? "status-installed" :
+                       s.status==="Canceled" ? "status-canceled" : "status-pending";
+        let btnClass = s.status==="Installed" ? "installed-btn" :
+                       s.status==="Canceled" ? "canceled-btn" : "pending-btn";
+
+        const tr = document.createElement("tr");
+        tr.className = rowClass;
+        tr.innerHTML = `
+          <td contenteditable onblur="editField(${i},'name',this.innerText)">${s.name}</td>
+          <td contenteditable onblur="editField(${i},'phone',this.innerText)">${s.phone}</td>
+          <td contenteditable onblur="editField(${i},'order',this.innerText)">${s.order}</td>
+          <td contenteditable onblur="editField(${i},'speed',this.innerText)">${s.speed}</td>
+          <td contenteditable onblur="editField(${i},'attachments',this.innerText)">${s.attachments}</td>
+          <td>${formatDate(s.dateSold)}</td>
+          <td><button class="status-btn ${btnClass}" onclick="cycleStatus(${i})">${s.status}</button></td>
+          <td><button class="delete-btn" onclick="deleteSale(${i})">X</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      groupsDiv.appendChild(div);
+    });
+  }
+
+  render();
+});
 </script>
 
 </body>
