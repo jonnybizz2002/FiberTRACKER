@@ -63,7 +63,7 @@ td[contenteditable="true"] { background:#eef6ff; }
   <input type="date" id="dateSold">
   <label>Install Date</label>
   <input type="date" id="installDate">
-  <button type="submit" class="add-btn">Add Sale</button>
+  <button type="button" id="addSaleBtn" class="add-btn">Add Sale</button>
 </form>
 
 <div class="filter-bar">
@@ -84,34 +84,32 @@ window.addEventListener("DOMContentLoaded", () => {
   let filter = "All";
 
   const statsDiv = document.getElementById("stats");
-  const form = document.getElementById("saleForm");
   const groupsDiv = document.getElementById("groups");
 
   function save() { localStorage.setItem("sales", JSON.stringify(sales)); }
 
   function formatDate(d) { 
-    if (!d) return "";
+    if(!d) return "";
     const x = new Date(d);
     return `${String(x.getMonth()+1).padStart(2,"0")}/${String(x.getDate()).padStart(2,"0")}/${String(x.getFullYear()).slice(-2)}`;
   }
 
-  function updateStats() {
+  function updateStats(){
     const total = sales.length;
-    const installed = sales.filter(s => s.status === "Installed").length;
-    const canceled = sales.filter(s => s.status === "Canceled").length;
-    const installRate = total ? Math.round((installed/total)*100) : 0;
-    const cancelRate = total ? Math.round((canceled/total)*100) : 0;
+    const installed = sales.filter(s=>s.status==="Installed").length;
+    const canceled = sales.filter(s=>s.status==="Canceled").length;
+    const installRate = total?Math.round((installed/total)*100):0;
+    const cancelRate = total?Math.round((canceled/total)*100):0;
     statsDiv.innerHTML = `Total: ${total} | Installed: ${installed} | Canceled: ${canceled}<br>
-      <span class="install-rate">Install Rate: ${installRate}%</span> |
-      <span class="cancel-rate">Cancel Rate: ${cancelRate}%</span>`;
+      <span class="install-rate">Install Rate: ${installRate}%</span> | <span class="cancel-rate">Cancel Rate: ${cancelRate}%</span>`;
   }
 
-  function render() {
+  function render(){
     updateStats();
     groupsDiv.innerHTML="";
     const grouped={};
     sales.forEach((s,i)=>{
-      if(filter !== "All" && s.status !== filter) return;
+      if(filter!=="All" && s.status!==filter) return;
       const key=formatDate(s.installDate)||"No Install Date";
       if(!grouped[key]) grouped[key]=[];
       grouped[key].push({s,i});
@@ -121,10 +119,10 @@ window.addEventListener("DOMContentLoaded", () => {
       const div=document.createElement("div");
       div.className="install-group";
       div.innerHTML=`<div class="install-header">Install Date: ${date} <span class="install-count">(${grouped[date].length} installs)</span></div>
-      <table><thead><tr>
-      <th>Name</th><th>Phone</th><th>Order</th><th>Speed</th>
-      <th>Attachments</th><th>Date Sold</th><th>Status</th><th>Delete</th>
-      </tr></thead><tbody></tbody></table>`;
+        <table><thead><tr>
+        <th>Name</th><th>Phone</th><th>Order</th><th>Speed</th>
+        <th>Attachments</th><th>Date Sold</th><th>Status</th><th>Delete</th>
+        </tr></thead><tbody></tbody></table>`;
       const tbody=div.querySelector("tbody");
       grouped[date].forEach(({s,i})=>{
         const tr=document.createElement("tr");
@@ -140,11 +138,12 @@ window.addEventListener("DOMContentLoaded", () => {
         <td><button class="status-btn ${btnClass}">${s.status}</button></td>
         <td><button class="delete-btn">X</button></td>`;
         
-        // Event listeners
+        // Editable fields
         const fields=["name","phone","order","speed","attachments"];
         tr.querySelectorAll("td[contenteditable]").forEach((td,index)=>{ 
           td.addEventListener("input",()=>{ sales[i][fields[index]]=td.innerText; save(); });
         });
+
         tr.querySelector(".status-btn").addEventListener("click",()=>{ cycleStatus(i); });
         tr.querySelector(".delete-btn").addEventListener("click",()=>{ deleteSale(i); });
         tbody.appendChild(tr);
@@ -166,31 +165,35 @@ window.addEventListener("DOMContentLoaded", () => {
     render(); 
   }
 
-  form.addEventListener("submit", e=>{
-    e.preventDefault();
-    const name=document.getElementById("name").value.trim();
-    const phone=document.getElementById("phone").value.trim();
-    const order=document.getElementById("order").value.trim();
-    const speed=document.getElementById("speed").value;
-    const attachments=[
+  // --- ADD SALE BUTTON FIX ---
+  document.getElementById("addSaleBtn").addEventListener("click", ()=>{
+    const name = document.getElementById("name").value.trim();
+    if(!name){ alert("Name required!"); return; }
+
+    const phone = document.getElementById("phone").value.trim();
+    const order = document.getElementById("order").value.trim();
+    const speed = document.getElementById("speed").value;
+    const attachments = [
       document.getElementById("wholeHome").checked?"Whole Home":"",
       document.getElementById("wifiSecurity").checked?"WiFi Security":"",
       document.getElementById("autopay").checked?"AutoPay":""
     ].filter(Boolean).join(", ");
-    const dateSold=document.getElementById("dateSold").value;
-    const installDate=document.getElementById("installDate").value;
-    if(!name){ alert("Name required!"); return; }
-    sales.push({name,phone,order,speed,attachments,dateSold,installDate,status:"Pending"});
+    const dateSold = document.getElementById("dateSold").value;
+    const installDate = document.getElementById("installDate").value;
+
+    sales.push({name, phone, order, speed, attachments, dateSold, installDate, status:"Pending"});
     save();
     render();
-    form.reset();
+    document.getElementById("saleForm").reset();
   });
 
+  // Filters
   document.getElementById("filterAll").addEventListener("click",()=>{filter="All"; render();});
   document.getElementById("filterPending").addEventListener("click",()=>{filter="Pending"; render();});
   document.getElementById("filterInstalled").addEventListener("click",()=>{filter="Installed"; render();});
   document.getElementById("filterCanceled").addEventListener("click",()=>{filter="Canceled"; render();});
-  
+
+  // CSV export
   document.getElementById("exportCSV").addEventListener("click",()=>{
     let csv="Name,Phone,Order,Speed,Attachments,Date Sold,Install Date,Status\n";
     sales.forEach(s=>{csv+=`"${s.name}","${s.phone}","${s.order}","${s.speed}","${s.attachments}","${formatDate(s.dateSold)}","${formatDate(s.installDate)}","${s.status}"\n`;});
@@ -201,6 +204,7 @@ window.addEventListener("DOMContentLoaded", () => {
     a.click();
   });
 
+  // Reset tracker
   document.getElementById("resetTracker").addEventListener("click",()=>{
     if(confirm("Delete all sales? Cannot undo.")){ sales=[]; localStorage.removeItem("sales"); render(); }
   });
@@ -208,6 +212,5 @@ window.addEventListener("DOMContentLoaded", () => {
   render();
 });
 </script>
-
 </body>
 </html>
