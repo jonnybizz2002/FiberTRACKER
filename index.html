@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontier Sales Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Frontier Sales">
+
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+h1, h2 { text-align: center; color: #333; }
+form { display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+input, select, button { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+button { background: #007bff; color: white; border: none; cursor: pointer; }
+button:hover { background: #0056b3; }
+.checkbox-group label { display: block; margin-bottom: 5px; }
+.status-group { display: flex; gap: 15px; align-items: center; margin-top: 5px; }
+
+.sales-dashboard { display: flex; flex-direction: column; gap: 20px; }
+.section { border-radius: 8px; padding: 10px; }
+.section h3 { margin-top: 0; }
+.date-group { margin-bottom: 15px; padding: 5px; border-radius: 5px; }
+li { list-style: none; margin-bottom: 5px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
+
+.delete-btn, .edit-btn { border: none; color: white; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-size: 12px; margin-left: 5px; }
+.delete-btn { background: #dc3545; }
+.delete-btn:hover { background: #b02a37; }
+.edit-btn { background: #ffc107; color: #000; }
+.edit-btn:hover { background: #e0a800; }
+
+.installed-section { background-color: #d4edda; }
+.canceled-section { background-color: #f8d7da; }
+.pending-section { background-color: #fff3cd; }
+
+.installed-sale { background-color: #c3e6cb; }
+.canceled-sale { background-color: #f5c6cb; }
+.pending-sale { background-color: #ffeeba; }
+
+.new-sale { animation: highlight 1s; }
+@keyframes highlight { 0% {background-color: #ffff99;} 100% {background-color: inherit;} }
+
+.sale-info { display: flex; flex-wrap: wrap; gap: 10px; }
+.sale-info span { flex: 1 1 130px; }
+.summary { display: flex; justify-content: space-around; margin-bottom: 15px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Frontier Fiber Sales</h1>
+
+<form id="saleForm">
+  <input required placeholder="Customer Name" id="name" />
+  <input type="tel" placeholder="Phone Number" id="phone" />
+  <input placeholder="Confirmation / Order Number" id="orderNumber" />
+  <select id="speed">
+    <option value="">Internet Speed</option>
+    <option>500 Mbps</option>
+    <option>1 Gig</option>
+    <option>2 Gig</option>
+    <option>5 Gig</option>
+  </select>
+  <label>Attachments</label>
+  <div class="checkbox-group">
+    <label><input type="checkbox" value="Whole Home"> Whole Home</label>
+    <label><input type="checkbox" value="WiFi Security"> WiFi Security</label>
+  </div>
+  <label>Date Sold</label>
+  <input type="date" id="dateSold" />
+  <label>Install Date</label>
+  <input type="date" id="installDate" />
+  
+  <div class="status-group">
+    <label><input type="checkbox" id="installed" /> Installed</label>
+    <label><input type="checkbox" id="canceled" /> Canceled</label>
+  </div>
+  
+  <button type="submit">Add / Update Sale</button>
+</form>
+
+<h2>Sales Dashboard</h2>
+
+<div class="sales-dashboard">
+  <div class="summary" id="summary"></div>
+  <div class="section installed-section">
+    <h3>Installed</h3>
+    <div id="installedList"></div>
+  </div>
+  <div class="section canceled-section">
+    <h3>Canceled</h3>
+    <div id="canceledList"></div>
+  </div>
+  <div class="section pending-section">
+    <h3>Pending</h3>
+    <div id="pendingList"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.getElementById("saleForm");
+  let sales = JSON.parse(localStorage.getItem("sales")) || [];
+  let editIndex = null;
+
+  function save() { localStorage.setItem("sales", JSON.stringify(sales)); }
+
+  function groupByInstallDate(arr) {
+    const grouped = {};
+    arr.forEach((sale, index) => {
+      const date = sale.installDate || "No Install Date";
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push({ ...sale, index });
+    });
+    return grouped;
+  }
+
+  function renderSummary() {
+    const totalInstalled = sales.filter(s => s.installed).length;
+    const totalCanceled = sales.filter(s => s.canceled).length;
+    const totalPending = sales.filter(s => !s.installed && !s.canceled).length;
+    document.getElementById("summary").textContent = 
+      `Installed: ${totalInstalled} | Canceled: ${totalCanceled} | Pending: ${totalPending} | Total Sales: ${sales.length}`;
+  }
+
+  function renderSection(container, items, colorClass) {
+    const grouped = groupByInstallDate(items);
+    container.innerHTML = "";
+    for (const date in grouped) {
+      const dateDiv = document.createElement("div");
+      dateDiv.className = "date-group";
+      dateDiv.innerHTML = `<strong>${date}</strong>`;
+      const ul = document.createElement("ul");
+      grouped[date].forEach(sale => {
+        const li = document.createElement("li");
+        li.className = colorClass + " new-sale";
+        li.innerHTML = `
+          <div class="sale-info">
+            <span>${sale.name}</span>
+            <span>Order #: ${sale.orderNumber || "—"}</span>
+            <span>Speed: ${sale.speed || "—"}</span>
+            <span>Attachments: ${sale.attachments.join(", ") || "—"}</span>
+            <span>Date Sold: ${sale.dateSold || "—"}</span>
+          </div>
+          <div>
+            <button class="edit-btn" onclick="editSale(${sale.index})">Edit</button>
+            <button class="delete-btn" onclick="deleteSale(${sale.index})">X</button>
+          </div>
+        `;
+        ul.appendChild(li);
+        setTimeout(() => li.classList.remove("new-sale"), 1000);
+      });
+      dateDiv.appendChild(ul);
+      container.appendChild(dateDiv);
+    }
+  }
+
+  function render() {
+    renderSection(document.getElementById("installedList"), sales.filter(s => s.installed), "installed-sale");
+    renderSection(document.getElementById("canceledList"), sales.filter(s => s.canceled), "canceled-sale");
+    renderSection(document.getElementById("pendingList"), sales.filter(s => !s.installed && !s.canceled), "pending-sale");
+    renderSummary();
+  }
+
+  window.deleteSale = function(index) {
+    sales.splice(index, 1);
+    save();
+    render();
+  };
+
+  window.editSale = function(index) {
+    const sale = sales[index];
+    document.getElementById("name").value = sale.name;
+    document.getElementById("phone").value = sale.phone;
+    document.getElementById("orderNumber").value = sale.orderNumber;
+    document.getElementById("speed").value = sale.speed;
+    document.getElementById("dateSold").value = sale.dateSold || "";
+    document.getElementById("installDate").value = sale.installDate || "";
+    document.getElementById("installed").checked = sale.installed;
+    document.getElementById("canceled").checked = sale.canceled;
+    document.querySelectorAll(".checkbox-group input").forEach(cb => {
+      cb.checked = sale.attachments.includes(cb.value);
+    });
+    editIndex = index;
+  };
+
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    const attachments = Array.from(document.querySelectorAll(".checkbox-group input:checked")).map(cb => cb.value);
+    const newSale = {
+      name: name.value.trim(),
+      phone: phone.value.trim(),
+      orderNumber: orderNumber.value.trim(),
+      speed: speed.value,
+      attachments,
+      dateSold: document.getElementById("dateSold").value,
+      installDate: document.getElementById("installDate").value,
+      installed: installed.checked,
+      canceled: canceled.checked,
+      saleDate: new Date().toISOString()
+    };
+    if (editIndex !== null) {
+      sales[editIndex] = newSale;
+      editIndex = null;
+    } else {
+      sales.push(newSale);
+    }
+    save();
+    render();
+    form.reset();
+    document.querySelector(".sales-dashboard").scrollIntoView({behavior: "smooth"});
+  });
+
+  render();
+});
+</script>
+
+</body>
+</html>
