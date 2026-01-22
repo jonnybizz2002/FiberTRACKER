@@ -186,7 +186,6 @@ td[contenteditable="true"] {
 </div>
 
 <button class="export-btn" onclick="exportCSV()">Export CSV</button>
-
 <div id="groups"></div>
 
 <script>
@@ -235,7 +234,6 @@ window.addEventListener("DOMContentLoaded", () => {
   form.onsubmit = e => {
     e.preventDefault();
 
-    // Grab inputs inside submit handler
     const nameInput = document.getElementById("name");
     const phoneInput = document.getElementById("phone");
     const orderInput = document.getElementById("order");
@@ -289,66 +287,6 @@ window.addEventListener("DOMContentLoaded", () => {
     save();
   }
 
-  function render() {
-    updateStats();
-    groupsDiv.innerHTML = "";
-    const grouped = {};
-
-    sales.forEach((s,i) => {
-      if (filter !== "All" && s.status !== filter) return;
-      const key = formatDate(s.installDate) || "No Install Date";
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push({s,i});
-    });
-
-    Object.keys(grouped).sort().forEach(date => {
-      const div = document.createElement("div");
-      div.className = "install-group";
-      div.innerHTML = `
-        <div class="install-header">
-          Install Date: ${date}
-          <span class="install-count"> (${grouped[date].length} installs)</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th><th>Phone</th><th>Order</th><th>Speed</th>
-              <th>Attachments</th><th>Date Sold</th><th>Status</th><th>Delete</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      `;
-      const tbody = div.querySelector("tbody");
-
-      grouped[date].forEach(({s,i}) => {
-        let rowClass = s.status==="Installed" ? "status-installed" :
-                       s.status==="Canceled" ? "status-canceled" : "status-pending";
-        let btnClass = s.status==="Installed" ? "installed-btn" :
-                       s.status==="Canceled" ? "canceled-btn" : "pending-btn";
-
-        const tr = document.createElement("tr");
-        tr.className = rowClass;
-        tr.innerHTML = `
-          <td contenteditable onblur="editField(${i},'name',this.innerText)">${s.name}</td>
-          <td contenteditable onblur="editField(${i},'phone',this.innerText)">${s.phone}</td>
-          <td contenteditable onblur="editField(${i},'order',this.innerText)">${s.order}</td>
-          <td contenteditable onblur="editField(${i},'speed',this.innerText)">${s.speed}</td>
-          <td contenteditable onblur="editField(${i},'attachments',this.innerText)">${s.attachments}</td>
-          <td>${formatDate(s.dateSold)}</td>
-          <td><button class="status-btn ${btnClass}" onclick="cycleStatus(${i})">${s.status}</button></td>
-          <td><button class="delete-btn" onclick="deleteSale(${i})">X</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      groupsDiv.appendChild(div);
-    });
-  }
-
-  render();
-});
-</script>
-
-</body>
-</html>
+  /* RESET TRACKER BUTTON */
+  const resetBtn = document.createElement("button");
+  resetBtn.textContent = "Reset
