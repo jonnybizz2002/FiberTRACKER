@@ -1,50 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Frontier Fiber Sales Tracker</title>
+<title>Frontier Sales Tracker</title>
 
 <style>
-body { font-family: Arial,sans-serif; background:#f4f6f8; padding:15px; margin:0; }
+body { font-family: Arial; background:#f4f6f8; padding:15px; }
 h1 { text-align:center; color:#007bff; }
-.stats { background:white; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; font-weight:bold; }
-form { background:white; padding:15px; border-radius:8px; margin-bottom:20px; }
-label { font-weight:bold; display:block; margin-top:10px; }
-input, select, button { width:100%; padding:10px; margin-top:5px; font-size:16px; }
-.checkbox-row { margin-top:6px; }
-button { border:none; border-radius:5px; margin-top:10px; color:white; cursor:pointer; }
-.add-btn { background:#007bff; }
-.export-btn { background:#28a745; }
-.filter-bar { display:flex; gap:5px; margin-bottom:10px; }
-.filter-bar button { flex:1; font-size:14px; }
-.install-group { margin-bottom:25px; }
-.install-header { background:#343a40; color:white; padding:8px; border-radius:5px; font-weight:bold; }
-table { width:100%; border-collapse:collapse; background:white; }
-th, td { border:1px solid #ccc; padding:6px; font-size:13px; text-align:center; }
-th { background:#007bff; color:white; }
-.status-pending { background:#fff3cd; }
-.status-installed { background:#d4edda; }
-.status-canceled { background:#f8d7da; }
-.status-btn, .delete-btn, .confirm-btn {
-  width:100%; padding:6px; font-size:12px; border:none; border-radius:4px; cursor:pointer;
-}
-.pending-btn { background:#ffc107; }
-.installed-btn { background:#28a745; color:white; }
-.canceled-btn { background:#dc3545; color:white; }
-.confirm-btn { background:#17a2b8; color:white; }
-.delete-btn { background:#6c757d; color:white; }
-td[contenteditable] { background:#eef6ff; }
+form, table { background:#fff; padding:15px; border-radius:8px; margin-bottom:15px; }
+input, select, button { width:100%; padding:8px; margin-top:5px; }
+button { background:#007bff; color:#fff; border:none; border-radius:5px; margin-top:10px; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+th { background:#007bff; color:#fff; }
+.pending { background:#fff3cd; }
+.installed { background:#d4edda; }
+.canceled { background:#f8d7da; }
+.confirmed { background:#d4edda; }
+.unconfirmed { background:#f8d7da; }
+.small { font-size:12px; }
 </style>
 </head>
 
 <body>
 
 <h1>Frontier Fiber Sales</h1>
-<div class="stats" id="stats"></div>
 
 <form id="saleForm">
-  <label>Customer Name</label>
+  <label>Name</label>
   <input id="name">
 
   <label>Phone</label>
@@ -59,14 +43,7 @@ td[contenteditable] { background:#eef6ff; }
     <option>500 Mbps</option>
     <option>1 Gig</option>
     <option>2 Gig</option>
-    <option>5 Gig</option>
   </select>
-
-  <label>Attachments</label>
-  <div class="checkbox-row"><input type="checkbox" id="wholeHome"> Whole Home</div>
-  <div class="checkbox-row"><input type="checkbox" id="wifiSecurity"> WiFi Security</div>
-  <div class="checkbox-row"><input type="checkbox" id="autopay"> AutoPay</div>
-  <div class="checkbox-row"><input type="checkbox" id="confirmed"> Confirmed Order</div>
 
   <label>Date Sold</label>
   <input type="date" id="dateSold">
@@ -74,165 +51,122 @@ td[contenteditable] { background:#eef6ff; }
   <label>Install Date</label>
   <input type="date" id="installDate">
 
-  <button type="button" id="addSaleBtn" class="add-btn">Add Sale</button>
+  <button type="button" onclick="addSale()">Add Sale</button>
 </form>
 
-<div class="filter-bar">
-  <button id="filterAll">All</button>
-  <button id="filterPending">Pending</button>
-  <button id="filterInstalled">Installed</button>
-  <button id="filterCanceled">Canceled</button>
-</div>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Phone</th>
+<th>BTN</th>
+<th>Speed</th>
+<th>Date Sold</th>
+<th>Install</th>
+<th>Confirmed</th>
+<th>Status</th>
+<th>Delete</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
 
-<button class="export-btn" id="exportCSV">Export CSV</button>
-<div id="groups"></div>
-<button id="resetTracker" style="background:#dc3545;">Reset Tracker</button>
+<button onclick="exportCSV()">Export CSV</button>
 
 <script>
-window.addEventListener("DOMContentLoaded", () => {
+let sales = JSON.parse(localStorage.getItem("sales") || "[]");
 
-let sales = JSON.parse(localStorage.getItem("sales")) || [];
-let filter = "All";
+function save(){ localStorage.setItem("sales", JSON.stringify(sales)); }
 
-const statsDiv = document.getElementById("stats");
-const groupsDiv = document.getElementById("groups");
-const save = () => localStorage.setItem("sales", JSON.stringify(sales));
-
-const formatDate = d => {
+function format(d){
   if(!d) return "";
-  const p = d.split("-");
-  return `${p[1]}/${p[2]}/${p[0].slice(-2)}`;
-};
-
-function updateStats(){
-  const t = sales.length;
-  const i = sales.filter(s=>s.status==="Installed").length;
-  const c = sales.filter(s=>s.status==="Canceled").length;
-  const conf = sales.filter(s=>s.confirmed).length;
-  statsDiv.innerHTML = `Total: ${t} | Installed: ${i} | Canceled: ${c} | Confirmed: ${conf}`;
+  let p=d.split("-");
+  return p[1]+"/"+p[2]+"/"+p[0].slice(2);
 }
 
-function render(){
-  updateStats();
-  groupsDiv.innerHTML = "";
-  const grouped = {};
-
-  sales.forEach((s,i)=>{
-    if(filter!=="All" && s.status!==filter) return;
-    const k = formatDate(s.installDate) || "No Install Date";
-    grouped[k] ??= [];
-    grouped[k].push({s,i});
-  });
-
-  Object.keys(grouped).sort().forEach(date=>{
-    const div = document.createElement("div");
-    div.className = "install-group";
-    div.innerHTML = `
-      <div class="install-header">Install Date: ${date}</div>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th><th>Phone</th><th>BTN</th><th>Speed</th>
-            <th>Attachments</th><th>Confirmed</th>
-            <th>Date Sold</th><th>Status</th><th>Delete</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>`;
-    const tbody = div.querySelector("tbody");
-
-    grouped[date].forEach(({s,i})=>{
-      const tr = document.createElement("tr");
-      tr.className = s.status==="Installed"?"status-installed":
-                     s.status==="Canceled"?"status-canceled":"status-pending";
-
-      tr.innerHTML = `
-        <td contenteditable>${s.name}</td>
-        <td contenteditable>${s.phone}</td>
-        <td contenteditable>${s.btn}</td>
-        <td contenteditable>${s.speed}</td>
-        <td contenteditable>${s.attachments}</td>
-        <td><button class="confirm-btn">${s.confirmed ? "✅" : "❌"}</button></td>
-        <td>${formatDate(s.dateSold)}</td>
-        <td><button class="status-btn">${s.status}</button></td>
-        <td><button class="delete-btn">X</button></td>`;
-
-      const fields = ["name","phone","btn","speed","attachments"];
-      tr.querySelectorAll("[contenteditable]").forEach((td,x)=>{
-        td.addEventListener("input",()=>{
-          sales[i][fields[x]] = td.innerText;
-          save();
-        });
-      });
-
-      tr.querySelector(".confirm-btn").onclick = ()=>{
-        s.confirmed = !s.confirmed;
-        save(); render();
-      };
-
-      tr.querySelector(".status-btn").onclick = ()=>{
-        const order = ["Pending","Installed","Canceled"];
-        s.status = order[(order.indexOf(s.status)+1)%3];
-        save(); render();
-      };
-
-      tr.querySelector(".delete-btn").onclick = ()=>{
-        sales.splice(i,1); save(); render();
-      };
-
-      tbody.appendChild(tr);
-    });
-
-    groupsDiv.appendChild(div);
-  });
-}
-
-addSaleBtn.onclick = ()=>{
-  if(!name.value.trim()) return alert("Name required");
+function addSale(){
+  let name=document.getElementById("name").value.trim();
+  if(!name){ alert("Name required"); return; }
 
   sales.push({
-    name: name.value.trim(),
-    phone: phone.value,
-    btn: btn.value,
-    speed: speed.value,
-    confirmed: confirmed.checked,
-    attachments: [
-      wholeHome.checked?"Whole Home":"",
-      wifiSecurity.checked?"WiFi Security":"",
-      autopay.checked?"AutoPay":""
-    ].filter(Boolean).join(", "),
-    dateSold: dateSold.value,
-    installDate: installDate.value,
+    name,
+    phone:phone.value,
+    btn:btn.value,
+    speed:speed.value,
+    dateSold:dateSold.value,
+    installDate:installDate.value,
+    confirmed:false,
     status:"Pending"
   });
 
-  save(); render(); saleForm.reset();
-};
+  save();
+  saleForm.reset();
+  render();
+}
 
-filterAll.onclick = ()=>{filter="All"; render();};
-filterPending.onclick = ()=>{filter="Pending"; render();};
-filterInstalled.onclick = ()=>{filter="Installed"; render();};
-filterCanceled.onclick = ()=>{filter="Canceled"; render();};
+function cycleStatus(i){
+  let s=sales[i];
+  s.status = s.status==="Pending"
+    ? "Installed"
+    : s.status==="Installed"
+    ? "Canceled"
+    : "Pending";
+  save(); render();
+}
 
-exportCSV.onclick = ()=>{
-  let csv = "Name,Phone,BTN,Speed,Attachments,Confirmed,Date Sold,Install Date,Status\n";
-  sales.forEach(s=>{
-    csv+=`"${s.name}","${s.phone}","${s.btn}","${s.speed}","${s.attachments}","${s.confirmed}","${formatDate(s.dateSold)}","${formatDate(s.installDate)}","${s.status}"\n`;
+function toggleConfirmed(i){
+  sales[i].confirmed = !sales[i].confirmed;
+  save(); render();
+}
+
+function delSale(i){
+  sales.splice(i,1);
+  save(); render();
+}
+
+function render(){
+  tableBody.innerHTML="";
+  sales.forEach((s,i)=>{
+    let tr=document.createElement("tr");
+    tr.className = s.status.toLowerCase();
+
+    tr.innerHTML=`
+      <td contenteditable oninput="sales[${i}].name=this.innerText;save()">${s.name}</td>
+      <td contenteditable oninput="sales[${i}].phone=this.innerText;save()">${s.phone}</td>
+      <td contenteditable oninput="sales[${i}].btn=this.innerText;save()">${s.btn}</td>
+      <td contenteditable oninput="sales[${i}].speed=this.innerText;save()">${s.speed}</td>
+      <td>${format(s.dateSold)}</td>
+      <td>${format(s.installDate)}</td>
+      <td>
+        <button class="small ${s.confirmed?'confirmed':'unconfirmed'}"
+                onclick="toggleConfirmed(${i})">
+          ${s.confirmed?'Confirmed':'Unconfirmed'}
+        </button>
+      </td>
+      <td>
+        <button class="small" onclick="cycleStatus(${i})">${s.status}</button>
+      </td>
+      <td>
+        <button onclick="delSale(${i})">X</button>
+      </td>
+    `;
+    tableBody.appendChild(tr);
   });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download = "frontier_sales.csv";
-  a.click();
-};
+}
 
-resetTracker.onclick = ()=>{
-  if(confirm("Delete all sales?")){
-    sales=[]; localStorage.clear(); render();
-  }
-};
+function exportCSV(){
+  let csv="Name,Phone,BTN,Speed,Date Sold,Install Date,Confirmed,Status\n";
+  sales.forEach(s=>{
+    csv+=`"${s.name}","${s.phone}","${s.btn}","${s.speed}","${format(s.dateSold)}","${format(s.installDate)}","${s.confirmed?'Yes':'No'}","${s.status}"\n`;
+  });
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="frontier_sales.csv";
+  a.click();
+}
 
 render();
-});
 </script>
+
 </body>
 </html>
